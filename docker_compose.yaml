@@ -82,5 +82,25 @@ services:
     profiles:
       - import
 
+  github-importer:
+    build:
+      context: ./github_importer
+
+    container_name: uwg-github-importer
+
+    environment:
+      DATABASE_URL: mysql+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/${MARIADB_DATABASE}
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
+      GITHUB_API_VERSION: "2022-11-28"
+      SOURCE_CODE: ${SOURCE_CODE:-}
+      FULL_SYNC: ${FULL_SYNC:-false}
+
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+    profiles:
+      - github-import
+
 volumes:
   mariadb_data:
