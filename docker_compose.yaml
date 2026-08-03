@@ -85,8 +85,10 @@ services:
     environment:
       DATABASE_URL: mysql+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/${MARIADB_DATABASE}
       TOOL_CODE: ${TOOL_CODE:-}
+      NEED_CODE: ${NEED_CODE:-}
       MIN_MATCH_SCORE: ${MIN_MATCH_SCORE:-0.22}
       MAX_MATCHES_PER_NEED: ${MAX_MATCHES_PER_NEED:-15}
+      REPLACE_PENDING: ${REPLACE_PENDING:-true}
     depends_on:
       mariadb:
         condition: service_healthy
