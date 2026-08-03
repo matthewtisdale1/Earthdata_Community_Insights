@@ -1,0 +1,86 @@
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: uwg-mariadb
+    restart: unless-stopped
+
+    environment:
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_AUTO_UPGRADE: "1"
+
+    ports:
+      - "3306:3306"
+
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+
+    healthcheck:
+      test:
+        - CMD
+        - healthcheck.sh
+        - --connect
+        - --innodb_initialized
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  api:
+    build:
+      context: ./api
+
+    container_name: uwg-api
+    restart: unless-stopped
+
+    environment:
+      DATABASE_URL: mysql+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/${MARIADB_DATABASE}
+
+    ports:
+      - "8000:8000"
+
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+  ui:
+    build:
+      context: ./ui
+
+    container_name: uwg-ui
+    restart: unless-stopped
+
+    environment:
+      API_BASE_URL: http://api:8000
+
+    ports:
+      - "8501:8501"
+
+    depends_on:
+      - api
+
+  importer:
+    build:
+      context: ./importer
+
+    container_name: uwg-importer
+
+    environment:
+      DATABASE_URL: mysql+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/${MARIADB_DATABASE}
+      WORKBOOK_PATH: /data/ESDIS_UWG_Community_Needs_Prototype_2021_2024.xlsx
+
+    volumes:
+      - ./data:/data:ro
+
+    depends_on:
+      mariadb:
+        condition: service_healthy
+
+    profiles:
+      - import
+
+volumes:
+  mariadb_data:
