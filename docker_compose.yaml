@@ -27,7 +27,9 @@ services:
     container_name: uwg-api
     restart: unless-stopped
     environment:
-      DATABASE_URL: mysql+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/${MARIADB_DATABASE}
+      DATABASE_URL: mysql+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/${APP_DATABASE:-${MARIADB_DATABASE}}
+      APP_DATABASE: ${APP_DATABASE:-${MARIADB_DATABASE}}
+      DATASET_MODE: ${DATASET_MODE:-full}
     ports:
       - "8000:8000"
     depends_on:
@@ -41,6 +43,7 @@ services:
     restart: unless-stopped
     environment:
       API_BASE_URL: http://api:8000
+      DATASET_MODE: ${DATASET_MODE:-full}
     ports:
       - "8501:8501"
     depends_on:
