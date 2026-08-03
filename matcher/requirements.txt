@@ -1,0 +1,3 @@
+sqlalchemy==2.0.41
+pymysql==1.1.1
+cryptography==45.0.3
