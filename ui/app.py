@@ -1,3 +1,5 @@
+import os
+
 import streamlit as st
 
 from navigation import register_pages
@@ -61,6 +63,13 @@ navigation = st.navigation(
 with st.sidebar:
     st.markdown("## NASA Earthdata")
     st.caption("Community Insights Prototype")
+
+    dataset_mode = os.environ.get("DATASET_MODE", "full").upper()
+    if dataset_mode == "DEMO":
+        st.warning("DATASET: DEMO", icon=":material/science:")
+    else:
+        st.info("DATASET: FULL", icon=":material/database:")
+
     st.divider()
     st.caption("Explore recurring community needs, supporting evidence, and the Earthdata tools that may address them.")
 
