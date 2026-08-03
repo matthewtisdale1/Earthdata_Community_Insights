@@ -5,6 +5,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY app ./app
+COPY run_matching.py .
 
-CMD ["uvicorn", "app.main_matches:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "run_matching.py"]
