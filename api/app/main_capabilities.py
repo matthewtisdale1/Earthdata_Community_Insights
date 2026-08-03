@@ -50,7 +50,25 @@ def get_capability(capability_code: str):
             ORDER BY nc.review_status='Confirmed' DESC, evidence_count DESC
         '''), {'code': capability_code}).mappings().all()
 
-        artifacts = connection.execute(text('''
+        solution_evidence = connection.execute(text('''
+            SELECT evidence_code, tool_code, tool_name, evidence_type,
+                   evidence_role, title, description, supporting_excerpt,
+                   source_url, source_name, version_label, published_at,
+                   last_verified_at, review_status, review_notes
+            FROM v_capability_solution_evidence
+            WHERE capability_code = :code
+            ORDER BY
+                CASE evidence_role
+                    WHEN 'Capability Evidence' THEN 0
+                    WHEN 'Availability Evidence' THEN 1
+                    WHEN 'Usage Guidance' THEN 2
+                    ELSE 3
+                END,
+                tool_name,
+                title
+        '''), {'code': capability_code}).mappings().all()
+
+        engineering_artifacts = connection.execute(text('''
             SELECT DISTINCT ia.artifact_code, ia.artifact_type,
                    ia.external_number, ia.title, ia.state, ia.external_url,
                    t.tool_code, t.tool_name, nam.review_status,
@@ -69,7 +87,8 @@ def get_capability(capability_code: str):
         'capability': dict(capability),
         'tools': [dict(row) for row in tools],
         'needs': [dict(row) for row in needs],
-        'artifacts': [dict(row) for row in artifacts],
+        'solution_evidence': [dict(row) for row in solution_evidence],
+        'engineering_artifacts': [dict(row) for row in engineering_artifacts],
     }
 
 
@@ -78,12 +97,34 @@ def tool_capabilities(tool_code: str):
     with engine.connect() as connection:
         rows = connection.execute(text('''
             SELECT c.capability_code, c.capability_name, c.category,
-                   c.description, tc.support_level, tc.reviewed
+                   c.description, tc.support_level, tc.reviewed,
+                   COUNT(DISTINCT se.solution_evidence_id) AS evidence_count
             FROM tool_capabilities tc
             JOIN tools t ON t.tool_id = tc.tool_id
             JOIN capabilities c ON c.capability_id = tc.capability_id
+            LEFT JOIN solution_evidence se
+              ON se.tool_id = t.tool_id
+             AND se.capability_id = c.capability_id
             WHERE t.tool_code = :tool_code
+            GROUP BY c.capability_id, c.capability_code, c.capability_name,
+                     c.category, c.description, tc.support_level, tc.reviewed
             ORDER BY c.category, c.capability_name
+        '''), {'tool_code': tool_code}).mappings().all()
+    return [dict(row) for row in rows]
+
+
+@app.get('/tools/{tool_code}/solution-evidence')
+def tool_solution_evidence(tool_code: str):
+    with engine.connect() as connection:
+        rows = connection.execute(text('''
+            SELECT evidence_code, capability_code, capability_name,
+                   evidence_type, evidence_role, title, description,
+                   supporting_excerpt, source_url, source_name,
+                   version_label, published_at, last_verified_at,
+                   review_status, review_notes
+            FROM v_capability_solution_evidence
+            WHERE tool_code = :tool_code
+            ORDER BY evidence_role, capability_name, title
         '''), {'tool_code': tool_code}).mappings().all()
     return [dict(row) for row in rows]
 
