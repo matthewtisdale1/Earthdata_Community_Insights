@@ -9,29 +9,51 @@ The application can switch between the full working database and a small, curate
 
 `APP_DATABASE` controls which database the API reads. `DATASET_MODE` controls the visible FULL or DEMO badge in Streamlit.
 
-## Build or refresh the demo database
+## Build a curated NEED-0042 demo
 
 From the repository root:
+
+```powershell
+.\scripts\refresh-demo.ps1 -NeedCodes NEED-0042
+```
+
+This keeps `NEED-0042`, all evidence linked to it, the organizations and source reports represented by that evidence, and up to five of its highest-priority implementation matches and artifacts.
+
+To keep more or fewer implementation artifacts:
+
+```powershell
+.\scripts\refresh-demo.ps1 `
+    -NeedCodes NEED-0042 `
+    -MaxArtifactsPerNeed 3
+```
+
+Multiple curated needs are also supported:
+
+```powershell
+.\scripts\refresh-demo.ps1 `
+    -NeedCodes NEED-0042,NEED-0141 `
+    -MaxArtifactsPerNeed 3
+```
+
+## Build an automatically selected demo
+
+The original automatic workflow remains available:
 
 ```powershell
 .\scripts\refresh-demo.ps1 -ExampleCount 2
 ```
 
-The script:
+When `-NeedCodes` is omitted, the script selects the highest-priority end-to-end matches, preferring Confirmed, then Uncertain, then Pending.
+
+In either mode, the script:
 
 1. Drops and recreates only the demo database.
 2. Copies the current full database into it.
-3. Selects the highest-priority end-to-end matches, preferring Confirmed, then Uncertain, then Pending.
+3. Selects the requested need or automatically selects matches.
 4. Keeps the selected needs, their evidence, organizations, report sources, artifacts, tools, repositories, and need-to-artifact matches.
 5. Removes unrelated records from the demo copy.
 
 The full database is never deleted or modified by this process.
-
-Use one example instead:
-
-```powershell
-.\scripts\refresh-demo.ps1 -ExampleCount 1
-```
 
 ## Switch datasets
 
@@ -64,6 +86,8 @@ API context:
 ```powershell
 Invoke-RestMethod http://127.0.0.1:8000/system/context
 ```
+
+For a curated NEED-0042 demo, the Needs page should contain one need. Its detail page should retain the Evidence, Organizations, Implementation, and Review tabs.
 
 ## Safeguards
 
