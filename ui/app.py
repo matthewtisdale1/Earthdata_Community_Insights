@@ -1,4 +1,4 @@
-﻿import streamlit as st
+import streamlit as st
 
 from navigation import register_pages
 from pages.dashboard import render as render_dashboard
@@ -9,11 +9,13 @@ from pages.needs import render as render_needs
 from pages.organizations import render as render_organizations
 from pages.review_queue import render as render_review_queue
 from pages.sources import render as render_sources
+from pages.tool_detail import render as render_tool_detail
+from pages.tools import render as render_tools
 from styles import apply_styles
 
 
 st.set_page_config(
-    page_title="UWG Community Needs",
+    page_title="Earthdata Community Insights",
     page_icon="🌎",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -60,6 +62,21 @@ evidence_detail = st.Page(
     visibility="hidden",
 )
 
+tools = st.Page(
+    render_tools,
+    title="Earthdata Tools",
+    icon=":material/apps:",
+    url_path="tools",
+)
+
+tool_detail = st.Page(
+    render_tool_detail,
+    title="Tool Details",
+    icon=":material/build:",
+    url_path="tool-detail",
+    visibility="hidden",
+)
+
 organizations = st.Page(
     render_organizations,
     title="Organizations",
@@ -89,6 +106,8 @@ register_pages(
         "need_detail": need_detail,
         "evidence": evidence,
         "evidence_detail": evidence_detail,
+        "tools": tools,
+        "tool_detail": tool_detail,
         "organizations": organizations,
         "sources": sources,
         "review_queue": review_queue,
@@ -102,6 +121,7 @@ navigation = st.navigation(
             dashboard,
             needs,
             evidence,
+            tools,
             organizations,
             sources,
         ],
@@ -111,6 +131,7 @@ navigation = st.navigation(
         "Details": [
             need_detail,
             evidence_detail,
+            tool_detail,
         ],
     },
     expanded=True,
@@ -119,14 +140,10 @@ navigation = st.navigation(
 
 with st.sidebar:
     st.markdown("## NASA Earthdata")
-    st.caption(
-        "Community Needs Prototype"
-    )
+    st.caption("Community Insights Prototype")
     st.divider()
-
     st.caption(
-        "Explore recurring community needs "
-        "and their supporting evidence."
+        "Explore recurring community needs, supporting evidence, and the Earthdata tools that may address them."
     )
 
 
