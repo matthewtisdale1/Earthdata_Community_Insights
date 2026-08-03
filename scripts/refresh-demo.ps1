@@ -103,6 +103,12 @@ WHERE artifact_id NOT IN (
     SELECT artifact_id FROM selected_artifacts
 );
 
+-- Evidence is a child of needs, so remove evidence for unselected needs first.
+DELETE FROM evidence
+WHERE need_id NOT IN (
+    SELECT need_id FROM selected_needs
+);
+
 DELETE FROM needs
 WHERE need_id NOT IN (
     SELECT need_id FROM selected_needs
