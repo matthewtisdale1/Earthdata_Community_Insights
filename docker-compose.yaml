@@ -3,19 +3,27 @@ services:
     image: mariadb:11.4
     container_name: uwg-mariadb
     restart: unless-stopped
+
     environment:
       MARIADB_DATABASE: ${MARIADB_DATABASE}
       MARIADB_USER: ${MARIADB_USER}
       MARIADB_PASSWORD: ${MARIADB_PASSWORD}
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
       MARIADB_AUTO_UPGRADE: "1"
+
     ports:
       - "3306:3306"
+
     volumes:
       - mariadb_data:/var/lib/mysql
       - ./database/init:/docker-entrypoint-initdb.d:ro
+
     healthcheck:
-      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      test:
+        - CMD
+        - healthcheck.sh
+        - --connect
+        - --innodb_initialized
       interval: 10s
       timeout: 5s
       retries: 20
@@ -24,14 +32,16 @@ services:
   api:
     build:
       context: ./api
+
     container_name: uwg-api
     restart: unless-stopped
+
     environment:
-      DATABASE_URL: mysql+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/${APP_DATABASE:-earthdata_user_needs}
-      APP_DATABASE: ${APP_DATABASE:-earthdata_user_needs}
-      DATASET_MODE: ${DATASET_MODE:-full}
+      DATABASE_URL: mysql+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/${MARIADB_DATABASE}
+
     ports:
       - "8000:8000"
+
     depends_on:
       mariadb:
         condition: service_healthy
@@ -39,60 +49,38 @@ services:
   ui:
     build:
       context: ./ui
+
     container_name: uwg-ui
     restart: unless-stopped
+
     environment:
       API_BASE_URL: http://api:8000
-      DATASET_MODE: ${DATASET_MODE:-full}
+
     ports:
       - "8501:8501"
+
     depends_on:
       - api
 
   importer:
     build:
       context: ./importer
+
     container_name: uwg-importer
+
     environment:
       DATABASE_URL: mysql+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/${MARIADB_DATABASE}
       WORKBOOK_PATH: /data/ESDIS_UWG_Community_Needs_Prototype_2021_2024.xlsx
+
     volumes:
       - ./data:/data:ro
-    depends_on:
-      mariadb:
-        condition: service_healthy
-    profiles: ["import"]
 
-  github-importer:
-    build:
-      context: ./github_importer
-    container_name: uwg-github-importer
-    environment:
-      DATABASE_URL: mysql+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/${MARIADB_DATABASE}
-      GITHUB_TOKEN: ${GITHUB_TOKEN}
-      GITHUB_API_VERSION: "2022-11-28"
-      SOURCE_CODE: ${SOURCE_CODE:-}
-      FULL_SYNC: ${FULL_SYNC:-false}
     depends_on:
       mariadb:
         condition: service_healthy
-    profiles: ["github-import"]
 
-  matcher:
-    build:
-      context: ./matcher
-    container_name: uwg-matcher
-    environment:
-      DATABASE_URL: mysql+pymysql://${MARIADB_USER}:${MARIADB_PASSWORD}@mariadb:3306/${MARIADB_DATABASE}
-      TOOL_CODE: ${TOOL_CODE:-}
-      NEED_CODE: ${NEED_CODE:-}
-      MIN_MATCH_SCORE: ${MIN_MATCH_SCORE:-0.22}
-      MAX_MATCHES_PER_NEED: ${MAX_MATCHES_PER_NEED:-15}
-      REPLACE_PENDING: ${REPLACE_PENDING:-true}
-    depends_on:
-      mariadb:
-        condition: service_healthy
-    profiles: ["match"]
+    profiles:
+      - import
 
 volumes:
   mariadb_data:
