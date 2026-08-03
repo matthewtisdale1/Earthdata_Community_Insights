@@ -1,16 +1,27 @@
 param(
     [int]$ExampleCount = 2,
     [string]$SourceDatabase = "",
-    [string]$DemoDatabase = "earthdata_insights_demo",
-    [string]$ComposeFile = ".\docker_compose.yaml"
+    [string]$DemoDatabase = "earthdata_insights_demo"
 )
 
 $ErrorActionPreference = "Stop"
 
 function Read-DotEnvValue([string]$Name) {
-    $line = Get-Content .env | Where-Object { $_ -match "^$Name=" } | Select-Object -First 1
-    if (-not $line) { throw "Missing $Name in .env" }
+    $line = Get-Content .env |
+        Where-Object { $_ -match "^$Name=" } |
+        Select-Object -First 1
+
+    if (-not $line) {
+        throw "Missing $Name in .env"
+    }
+
     return ($line -replace "^$Name=", "").Trim()
+}
+
+function Assert-LastCommand([string]$Description) {
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Description failed with exit code $LASTEXITCODE."
+    }
 }
 
 if ($ExampleCount -lt 1 -or $ExampleCount -gt 10) {
@@ -18,6 +29,8 @@ if ($ExampleCount -lt 1 -or $ExampleCount -gt 10) {
 }
 
 $rootPassword = Read-DotEnvValue "MARIADB_ROOT_PASSWORD"
+$appUser = Read-DotEnvValue "MARIADB_USER"
+
 if (-not $SourceDatabase) {
     $SourceDatabase = Read-DotEnvValue "MARIADB_DATABASE"
 }
@@ -28,11 +41,24 @@ if ($SourceDatabase -eq $DemoDatabase) {
 
 Write-Host "Creating demo database '$DemoDatabase' from '$SourceDatabase'..."
 
-# Recreate the demo database without changing the full database.
-docker exec -e MYSQL_PWD=$rootPassword uwg-mariadb mariadb -uroot -e "DROP DATABASE IF EXISTS ``$DemoDatabase``; CREATE DATABASE ``$DemoDatabase`` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+$createSql = @"
+DROP DATABASE IF EXISTS ``$DemoDatabase``;
+CREATE DATABASE ``$DemoDatabase``
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+GRANT ALL PRIVILEGES ON ``$DemoDatabase``.* TO '$appUser'@'%';
+FLUSH PRIVILEGES;
+"@
 
-# Copy schema and data entirely inside the MariaDB container.
-docker exec -e MYSQL_PWD=$rootPassword uwg-mariadb sh -c "mariadb-dump -uroot --single-transaction --routines --triggers '$SourceDatabase' | mariadb -uroot '$DemoDatabase'"
+$createSql |
+    docker exec -i -e MYSQL_PWD=$rootPassword uwg-mariadb `
+    mariadb -uroot
+Assert-LastCommand "Creating the demo database"
+
+# Copy the full schema and data before selecting the curated records.
+docker exec -e MYSQL_PWD=$rootPassword uwg-mariadb `
+    sh -c "mariadb-dump -uroot --single-transaction --routines --triggers '$SourceDatabase' | mariadb -uroot '$DemoDatabase'"
+Assert-LastCommand "Copying the full database into the demo database"
 
 $pruneSql = @"
 USE ``$DemoDatabase``;
@@ -52,19 +78,35 @@ ORDER BY
 LIMIT $ExampleCount;
 
 CREATE TEMPORARY TABLE selected_needs AS
-SELECT DISTINCT need_id FROM selected_matches;
+SELECT DISTINCT need_id
+FROM selected_matches;
 
 CREATE TEMPORARY TABLE selected_artifacts AS
-SELECT DISTINCT artifact_id FROM selected_matches;
+SELECT DISTINCT artifact_id
+FROM selected_matches;
 
 DELETE FROM need_artifact_matches
-WHERE match_id NOT IN (SELECT match_id FROM selected_matches);
+WHERE match_id NOT IN (
+    SELECT match_id FROM selected_matches
+);
+
+DELETE FROM artifact_relationships
+WHERE source_artifact_id NOT IN (
+        SELECT artifact_id FROM selected_artifacts
+    )
+   OR target_artifact_id NOT IN (
+        SELECT artifact_id FROM selected_artifacts
+    );
 
 DELETE FROM implementation_artifacts
-WHERE artifact_id NOT IN (SELECT artifact_id FROM selected_artifacts);
+WHERE artifact_id NOT IN (
+    SELECT artifact_id FROM selected_artifacts
+);
 
 DELETE FROM needs
-WHERE need_id NOT IN (SELECT need_id FROM selected_needs);
+WHERE need_id NOT IN (
+    SELECT need_id FROM selected_needs
+);
 
 DELETE es
 FROM external_sources es
@@ -95,12 +137,17 @@ DELETE FROM review_decisions;
 SELECT
     (SELECT COUNT(*) FROM needs) AS needs,
     (SELECT COUNT(*) FROM evidence) AS evidence,
+    (SELECT COUNT(*) FROM sources) AS sources,
+    (SELECT COUNT(*) FROM organizations) AS organizations,
     (SELECT COUNT(*) FROM implementation_artifacts) AS artifacts,
     (SELECT COUNT(*) FROM need_artifact_matches) AS matches,
     (SELECT COUNT(*) FROM tools) AS tools;
 "@
 
-$pruneSql | docker exec -i -e MYSQL_PWD=$rootPassword uwg-mariadb mariadb -uroot
+$pruneSql |
+    docker exec -i -e MYSQL_PWD=$rootPassword uwg-mariadb `
+    mariadb -uroot
+Assert-LastCommand "Pruning the demo database"
 
 Write-Host ""
 Write-Host "Demo database refreshed successfully."
