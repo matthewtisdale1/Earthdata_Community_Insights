@@ -1,0 +1,42 @@
+version: 1
+items:
+  - code: DATA_DISCOVERY
+    name: Data Discovery
+  - code: SEARCH_FILTERING
+    name: Search Filtering
+  - code: SEMANTIC_SEARCH
+    name: Semantic Search
+  - code: DATA_ACCESS
+    name: Data Access
+  - code: DOWNLOAD
+    name: Data Download
+  - code: PROGRAMMATIC_ACCESS
+    name: Programmatic Access
+  - code: SUBSETTING
+    name: Spatial and Temporal Subsetting
+  - code: DATA_TRANSFORMATION
+    name: Data Transformation
+  - code: VISUALIZATION
+    name: Visualization and Analysis
+  - code: MAP_SERVICES
+    name: Map and Coverage Services
+  - code: METADATA
+    name: Metadata Management
+  - code: INTEROPERABILITY
+    name: Interoperability
+  - code: CLOUD_PROCESSING
+    name: Cloud Processing
+  - code: DOCUMENTATION
+    name: Documentation
+  - code: TRAINING
+    name: Training
+  - code: USER_SUPPORT
+    name: User Support
+  - code: AUTHENTICATION
+    name: Authentication and Authorization
+  - code: PERFORMANCE
+    name: Performance and Scalability
+  - code: PRESERVATION
+    name: Data Preservation
+  - code: USER_RESEARCH
+    name: User Research and Feedback
