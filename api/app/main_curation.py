@@ -1,36 +1,36 @@
 from typing import Optional
 
-from fastapi import Query
+from fastapi import HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.main_capabilities import app, engine
+
+
+class EvidenceReview(BaseModel):
+    decision: str
+    reviewer: str
+    need_code: Optional[str] = None
+    rationale: Optional[str] = None
+    relationship_type: str = 'Supports'
 
 
 @app.get('/curation/evidence/summary')
 def evidence_queue_summary():
     with engine.connect() as connection:
         row = connection.execute(text('''
-            SELECT
-                COUNT(*) AS total,
+            SELECT COUNT(*) AS total,
                 SUM(CASE WHEN human_reviewed = FALSE THEN 1 ELSE 0 END) AS unreviewed,
                 SUM(CASE WHEN human_reviewed = TRUE THEN 1 ELSE 0 END) AS reviewed,
                 COUNT(DISTINCT source_id) AS source_count,
                 COUNT(DISTINCT event_year) AS year_count
-            FROM evidence
-            WHERE duplicate_evidence = FALSE
+            FROM evidence WHERE duplicate_evidence = FALSE
         ''')).mappings().one()
     return dict(row)
 
 
 @app.get('/curation/evidence')
-def evidence_queue(
-    q: str = '',
-    reviewed: Optional[bool] = None,
-    source_code: str = '',
-    organization: str = '',
-    year: Optional[int] = None,
-    limit: int = Query(500, ge=1, le=1000),
-):
+def evidence_queue(q: str = '', reviewed: Optional[bool] = None, source_code: str = '', organization: str = '', year: Optional[int] = None, limit: int = Query(500, ge=1, le=1000)):
     conditions = ['e.duplicate_evidence = FALSE']
     parameters = {'limit': limit}
     if q:
@@ -48,35 +48,47 @@ def evidence_queue(
     if year is not None:
         conditions.append('e.event_year = :year')
         parameters['year'] = year
-
     with engine.connect() as connection:
         rows = connection.execute(text(f'''
-            SELECT
-                e.evidence_code,
-                e.original_statement,
-                e.evidence_type,
-                e.event_year,
-                e.human_reviewed,
-                e.source_section,
-                e.source_page,
+            SELECT e.evidence_code, e.original_statement, e.evidence_type, e.event_year,
+                e.human_reviewed, e.source_section, e.source_page,
                 COALESCE(e.originating_organization_name, o.organization_name) AS originating_organization,
-                s.source_code,
-                s.source_title,
-                n.need_code,
-                n.canonical_need,
-                COALESCE(enl.review_status,
-                    CASE WHEN e.human_reviewed THEN 'Confirmed' ELSE 'Candidate' END
-                ) AS review_status
+                s.source_code, s.source_title, n.need_code, n.canonical_need,
+                COALESCE(enl.review_status, CASE WHEN e.human_reviewed THEN 'Confirmed' ELSE 'Candidate' END) AS review_status
             FROM evidence e
-            LEFT JOIN evidence_need_links enl
-              ON enl.evidence_id = e.evidence_id
-             AND enl.relationship_type = 'Supports'
-            LEFT JOIN needs n
-              ON n.need_id = COALESCE(enl.need_id, e.need_id)
+            LEFT JOIN evidence_need_links enl ON enl.evidence_id = e.evidence_id AND enl.relationship_type = 'Supports'
+            LEFT JOIN needs n ON n.need_id = COALESCE(enl.need_id, e.need_id)
             LEFT JOIN sources s ON s.source_id = e.source_id
             LEFT JOIN organizations o ON o.organization_id = e.organization_id
             WHERE {' AND '.join(conditions)}
-            ORDER BY e.human_reviewed, e.event_year DESC, e.evidence_code
-            LIMIT :limit
+            ORDER BY e.human_reviewed, e.event_year DESC, e.evidence_code LIMIT :limit
         '''), parameters).mappings().all()
     return [dict(row) for row in rows]
+
+
+@app.post('/curation/evidence/{evidence_code}/review')
+def review_evidence(evidence_code: str, review: EvidenceReview):
+    allowed = {'Approve', 'Edit', 'Merge', 'Split', 'Retire', 'Research'}
+    if review.decision not in allowed:
+        raise HTTPException(status_code=400, detail='Unsupported review decision')
+    with engine.begin() as connection:
+        evidence = connection.execute(text('SELECT evidence_id FROM evidence WHERE evidence_code = :code'), {'code': evidence_code}).mappings().first()
+        if not evidence:
+            raise HTTPException(status_code=404, detail='Evidence not found')
+        need_id = None
+        if review.need_code:
+            need = connection.execute(text('SELECT need_id FROM needs WHERE need_code = :code'), {'code': review.need_code}).mappings().first()
+            if not need:
+                raise HTTPException(status_code=404, detail='Canonical need not found')
+            need_id = need['need_id']
+            connection.execute(text('''
+                INSERT INTO evidence_need_links (evidence_id, need_id, relationship_type, review_status, reviewer, reviewed_at, notes)
+                VALUES (:evidence_id, :need_id, :relationship_type, 'Confirmed', :reviewer, NOW(), :notes)
+                ON DUPLICATE KEY UPDATE review_status='Confirmed', reviewer=VALUES(reviewer), reviewed_at=NOW(), notes=VALUES(notes)
+            '''), {'evidence_id': evidence['evidence_id'], 'need_id': need_id, 'relationship_type': review.relationship_type, 'reviewer': review.reviewer, 'notes': review.rationale})
+        connection.execute(text('UPDATE evidence SET human_reviewed = TRUE WHERE evidence_id = :id'), {'id': evidence['evidence_id']})
+        connection.execute(text('''
+            INSERT INTO review_decisions (entity_type, entity_key, decision_type, new_value, reviewer, review_notes)
+            VALUES ('Evidence', :key, :decision, JSON_OBJECT('need_code', :need_code), :reviewer, :notes)
+        '''), {'key': evidence_code, 'decision': review.decision, 'need_code': review.need_code, 'reviewer': review.reviewer, 'notes': review.rationale})
+    return {'reviewed': evidence_code, 'decision': review.decision, 'need_code': review.need_code}
