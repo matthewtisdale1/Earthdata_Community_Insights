@@ -22,12 +22,13 @@ def render() -> None:
     )
 
     summary = api.get('/curation/needs/recommendations/summary')
-    metrics = st.columns(5)
+    metrics = st.columns(6)
     metrics[0].metric('Total needs', summary.get('total_needs', 0))
     metrics[1].metric('Flagged', summary.get('flagged_needs', 0))
-    metrics[2].metric('Grammar / format', summary.get('grammar_or_format', 0))
-    metrics[3].metric('Implementation language', summary.get('implementation_language', 0))
-    metrics[4].metric('Possible multi-outcome', summary.get('possible_multiple_outcomes', 0))
+    metrics[2].metric('Actionable', summary.get('actionable_recommendations', 0))
+    metrics[3].metric('Manual rewrite', summary.get('manual_rewrite_required', 0))
+    metrics[4].metric('Implementation language', summary.get('implementation_language', 0))
+    metrics[5].metric('Possible multi-outcome', summary.get('possible_multiple_outcomes', 0))
 
     search_col, issue_col = st.columns([2, 1])
     search = search_col.text_input(
@@ -41,7 +42,10 @@ def render() -> None:
         '/curation/needs/recommendations',
         {'q': search, 'issue': issue, 'limit': 500},
     )
-    st.caption(f"{len(recommendations)} needs require review. Suggestions are deterministic review aids, not automatic decisions.")
+    st.caption(
+        f"{len(recommendations)} needs require review. "
+        'Suggestions are deterministic review aids, not automatic decisions.'
+    )
 
     if not recommendations:
         st.success('No needs matched the selected recommendation filters.')
@@ -50,8 +54,10 @@ def render() -> None:
     for item in recommendations:
         need_code = item['need_code']
         reasons = item.get('recommendation_reasons') or []
+        changed = bool(item.get('changed'))
+        label = 'suggested rewrite' if changed else 'manual rewrite needed'
         with st.expander(
-            f"{need_code} · {len(reasons)} issue{'s' if len(reasons) != 1 else ''}",
+            f"{need_code} · {label} · {len(reasons)} issue{'s' if len(reasons) != 1 else ''}",
             expanded=False,
         ):
             context = st.columns(4)
@@ -64,16 +70,26 @@ def render() -> None:
             for reason in reasons:
                 st.write(f'- {reason}')
 
+            if not changed:
+                st.warning(
+                    'The deterministic rules identified a problem but could not '
+                    'produce a trustworthy rewrite. Edit the proposed wording '
+                    'manually using the supporting evidence and desired outcome.'
+                )
+
             left, right = st.columns(2, gap='large')
             with left:
                 st.markdown('#### Current canonical need')
                 st.info(item['canonical_need'])
+                if item.get('desired_outcome'):
+                    st.markdown('**Curated desired outcome**')
+                    st.caption(item['desired_outcome'])
             with right:
                 st.markdown('#### Recommended canonical need')
                 proposed = st.text_area(
                     'Edit recommendation before approval',
                     value=item['recommended_canonical_need'],
-                    height=150,
+                    height=170,
                     key=f'recommendation_{need_code}',
                     label_visibility='collapsed',
                 )
@@ -96,7 +112,9 @@ def render() -> None:
                 type='primary',
                 use_container_width=True,
             ):
-                if not proposed.strip().lower().startswith('earthdata users need'):
+                if proposed.strip() == item['canonical_need'].strip():
+                    st.error('Edit the wording before approving this recommendation.')
+                elif not proposed.strip().lower().startswith('earthdata users need'):
                     st.error('Approved canonical needs must begin with “Earthdata users need”.')
                 elif not reviewer.strip():
                     st.error('A reviewer is required.')
