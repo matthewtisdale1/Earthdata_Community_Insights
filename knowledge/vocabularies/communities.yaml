@@ -1,0 +1,28 @@
+version: 1
+items:
+  - code: ATMOSPHERIC_SCIENCE
+    name: Atmospheric Science
+  - code: HEALTH_AIR_QUALITY
+    name: Health and Air Quality
+  - code: WATER_RESOURCES
+    name: Water Resources
+  - code: CRYOSPHERE
+    name: Cryosphere
+  - code: LAND
+    name: Land Processes
+  - code: OCEAN
+    name: Oceanography
+  - code: DISASTERS
+    name: Disasters and Emergency Response
+  - code: AGRICULTURE
+    name: Agriculture
+  - code: CARBON
+    name: Carbon Cycle
+  - code: GIS
+    name: GIS and Geospatial Users
+  - code: DEVELOPERS
+    name: Application Developers
+  - code: EDUCATION
+    name: Education and Outreach
+  - code: AI_ML
+    name: AI and Machine Learning
