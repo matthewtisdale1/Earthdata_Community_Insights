@@ -1,0 +1,22 @@
+version: 1
+items:
+  - code: UWG_REPORT
+    name: User Working Group Report
+  - code: WORKSHOP
+    name: Workshop or Technical Interchange
+  - code: SURVEY
+    name: Survey
+  - code: INTERVIEW
+    name: Interview
+  - code: MEETING_NOTES
+    name: Meeting Notes
+  - code: GITHUB_ISSUE
+    name: GitHub Issue
+  - code: DOCUMENTATION
+    name: Product Documentation
+  - code: RELEASE_NOTES
+    name: Release Notes
+  - code: WHITE_PAPER
+    name: White Paper
+  - code: OTHER
+    name: Other
