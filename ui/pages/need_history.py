@@ -9,7 +9,7 @@ from styles import page_header
 
 def render() -> None:
     page_header('Canonical Need Review History', 'Inspect the evidence breadth and audit trail for a canonical need.')
-    needs = api.get('/needs', {'limit': 1000})
+    needs = api.get('/needs', {'limit': 500})
     options = {f"{item['need_code']} — {item['canonical_need']}": item['need_code'] for item in needs}
     if not options:
         st.info('No canonical needs are available.')
