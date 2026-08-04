@@ -1,0 +1,30 @@
+version: 1
+items:
+  - code: DISCOVERY
+    name: Data Discovery
+  - code: ACCESS
+    name: Data Access
+  - code: METADATA
+    name: Metadata
+  - code: DOCUMENTATION
+    name: Documentation
+  - code: VISUALIZATION
+    name: Visualization and Analysis
+  - code: CLOUD
+    name: Cloud Enablement
+  - code: PROGRAMMATIC_ACCESS
+    name: Programmatic Access
+  - code: INTEROPERABILITY
+    name: Interoperability
+  - code: PERFORMANCE
+    name: Performance and Scalability
+  - code: AUTHENTICATION
+    name: Authentication and Authorization
+  - code: TRAINING
+    name: Training and User Support
+  - code: ENGAGEMENT
+    name: Community Engagement
+  - code: PRESERVATION
+    name: Preservation and Data Stewardship
+  - code: SCIENCE_ENABLEMENT
+    name: Science Enablement
