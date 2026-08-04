@@ -3,7 +3,7 @@ import html
 import streamlit as st
 
 import api_client as api
-from navigation import evidence_link, goto_need
+from navigation import evidence_link, goto_evidence, goto_need
 from styles import breadcrumb, page_header
 
 
@@ -15,6 +15,7 @@ def render() -> None:
         return
 
     evidence = api.get(f'/evidence/{evidence_code}')
+    similar = api.get(f'/curation/evidence/{evidence_code}/similar', {'limit': 5})
     breadcrumb('Curation › Evidence Review')
     page_header(evidence_code, evidence.get('evidence_type') or 'Community evidence')
 
@@ -27,6 +28,23 @@ def render() -> None:
         st.write(evidence.get('normalized_statement') or 'No normalized statement has been recorded.')
         if evidence.get('context_rationale'):
             st.write(evidence['context_rationale'])
+
+        st.subheader('Similar evidence')
+        st.caption('Suggestions use explainable token overlap. They assist review and do not create mappings automatically.')
+        if not similar:
+            st.info('No similar evidence suggestions were found.')
+        for item in similar:
+            with st.container(border=True):
+                heading, action = st.columns([5, 1])
+                heading.markdown(f"**{item['evidence_code']} · {float(item['similarity_score']):.0%} similarity**")
+                heading.caption(f"{item.get('originating_organization') or 'Unknown origin'} · {item.get('event_year') or 'Unknown year'}")
+                st.write(item['original_statement'])
+                if item.get('shared_terms'):
+                    st.caption('Shared terms: ' + ', '.join(item['shared_terms']))
+                if item.get('need_code'):
+                    st.caption(f"Linked need: {item['need_code']} — {item.get('canonical_need') or ''}")
+                if action.button('Open', key=f"similar_{item['evidence_code']}", use_container_width=True):
+                    goto_evidence(item['evidence_code'])
 
         st.subheader('Review decision')
         with st.form('evidence_review'):
