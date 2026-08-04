@@ -5,6 +5,7 @@ from navigation import register_pages
 from pages.dashboard import render as render_dashboard
 from pages.evidence import render as render_evidence
 from pages.evidence_detail import render as render_evidence_detail
+from pages.evidence_queue import render as render_evidence_queue
 from pages.match_review import render as render_match_review
 from pages.need_detail import render as render_need_detail
 from pages.needs import render as render_needs
@@ -24,6 +25,7 @@ dashboard = st.Page(render_dashboard, title='Community Signals', icon=':material
 needs = st.Page(render_needs, title='Needs', icon=':material/hub:', url_path='needs')
 need_detail = st.Page(render_need_detail, title='Need Details', icon=':material/description:', url_path='need-detail', visibility='hidden')
 evidence = st.Page(render_evidence, title='Evidence', icon=':material/format_quote:', url_path='evidence')
+evidence_queue = st.Page(render_evidence_queue, title='Evidence Review Queue', icon=':material/fact_check:', url_path='evidence-review-queue')
 evidence_detail = st.Page(render_evidence_detail, title='Evidence Details', icon=':material/article:', url_path='evidence-detail', visibility='hidden')
 capabilities = st.Page(render_capabilities, title='Capabilities', icon=':material/category:', url_path='capabilities')
 capability_detail = st.Page(render_capability_detail, title='Capability Details', icon=':material/account_tree:', url_path='capability-detail', visibility='hidden')
@@ -35,14 +37,15 @@ review_queue = st.Page(render_review_queue, title='Need Review Queue', icon=':ma
 match_review = st.Page(render_match_review, title='Implementation Matches', icon=':material/compare_arrows:', url_path='implementation-matches')
 
 register_pages({'dashboard': dashboard, 'needs': needs, 'need_detail': need_detail, 'evidence': evidence,
-                'evidence_detail': evidence_detail, 'capabilities': capabilities, 'capability_detail': capability_detail,
+                'evidence_queue': evidence_queue, 'evidence_detail': evidence_detail,
+                'capabilities': capabilities, 'capability_detail': capability_detail,
                 'tools': tools, 'tool_detail': tool_detail, 'organizations': organizations, 'sources': sources,
                 'review_queue': review_queue, 'match_review': match_review})
 
 navigation = st.navigation({
     'Community': [dashboard, needs, evidence, organizations],
     'Earthdata Ecosystem': [capabilities, tools],
-    'Curation': [sources, review_queue, match_review],
+    'Curation': [evidence_queue, sources, review_queue, match_review],
     'Details': [need_detail, evidence_detail, capability_detail, tool_detail],
 }, expanded=True)
 
