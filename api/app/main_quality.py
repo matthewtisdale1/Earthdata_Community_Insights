@@ -79,7 +79,7 @@ def assess_need(statement: str) -> dict:
     }
 
 
-@app.get('/needs/quality-review')
+@app.get('/quality/needs')
 def need_quality_review(
     status: str = '',
     reviewed: Optional[bool] = None,
