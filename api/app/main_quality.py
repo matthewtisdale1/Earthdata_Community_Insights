@@ -54,7 +54,16 @@ def assess_need(statement: str) -> dict:
             flags.append('May combine multiple needs')
         if not any(
             marker in lowered
-            for marker in (' need ', ' needs ', ' require ', ' requires ', ' must ', ' should ', ' ability ', ' access ')
+            for marker in (
+                ' need ',
+                ' needs ',
+                ' require ',
+                ' requires ',
+                ' must ',
+                ' should ',
+                ' ability ',
+                ' access ',
+            )
         ):
             flags.append('Outcome or need may be unclear')
 
@@ -100,8 +109,6 @@ def need_quality_review(
                     canonical_need,
                     need_category,
                     human_reviewed,
-                    reviewer,
-                    review_date,
                     evidence_count,
                     organization_count,
                     year_count,
