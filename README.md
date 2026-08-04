@@ -1,324 +1,138 @@
 # Earthdata Community Insights
 
-Earthdata Community Insights is a prototype platform for identifying, organizing, and analyzing recurring needs expressed by the NASA Earthdata community.
+Earthdata Community Insights (ECI) is a prototype knowledge platform that connects community evidence, canonical needs, Earthdata capabilities, Earthdata tools, and authoritative documentation.
 
-The application connects community needs to supporting evidence and is being extended to identify related capabilities, Earthdata tools, GitHub issues, pull requests, releases, and documentation.
+Its purpose is to help NASA understand what users need, why those needs exist, which Earthdata capabilities address them, and where supported solutions already exist.
 
-## Questions the project is designed to answer
+## Knowledge model
 
-- What needs are being heard most often from the Earthdata community?
-- Which needs recur across multiple organizations, communities, reports, and years?
-- What source evidence supports each need?
-- Which Earthdata tools or services may already address a need?
-- Are related implementation tickets open, planned, partially implemented, or complete?
-- Which high-signal needs still lack an identified solution?
-
-## Current prototype
-
-The current prototype provides:
-
-- A MariaDB system of record
-- A FastAPI REST API
-- A Streamlit user interface
-- Docker Compose for local development
-- Import of structured community-needs data from an Excel workbook
-- Search and filtering across needs and evidence
-- Need-detail and evidence-detail views
-- Human review and validation fields
-- Organization and source views
-- Signal scoring based on recurrence and source diversity
-
-## Initial Earthdata tool scope
-
-The first implementation-artifact integrations will focus on:
-
-- Earthdata Search
-- Worldview
-- Global Imagery Browse Services (GIBS)
-- Common Metadata Repository (CMR)
-- Harmony
-
-The planned GitHub integration will ingest issues, pull requests, releases, and related implementation artifacts from approved repositories, then propose links between those artifacts and canonical user needs.
-
-## Core data model
-
-```text
-One canonical need
-        │
-        ├── supported by many evidence records
-        ├── expressed by multiple organizations
-        ├── associated with user communities
-        ├── related to Earthdata capabilities
-        └── linked to implementation artifacts
+```mermaid
+flowchart LR
+    E[Community Evidence] -->|supports| N[Canonical Need]
+    N -->|requires| C[Capability]
+    T[Earthdata Tool] -->|provides| C
+    D[Official Documentation] -->|demonstrates| T
+    O[Organization] -->|contributes| E
 ```
 
-Implementation artifacts may include:
+The application preserves original evidence, uses human-reviewed canonical needs, and treats automated matches as suggestions rather than authoritative conclusions.
 
-- GitHub issues
-- Pull requests
-- Releases
-- Documentation
-- Roadmap items
-- Tool features
-- Service endpoints
+## Current capabilities
 
-A closed issue is not automatically treated as a solved need. Human review is required to determine whether an artifact tracks, proposes, partially addresses, fully addresses, implements, documents, or is unrelated to a need.
+- Import and browse community evidence and canonical needs
+- Trace needs to sources and organizations
+- Maintain an Earthdata tool catalog
+- Import GitHub issues, pull requests, and releases as engineering provenance
+- Match needs to candidate implementation artifacts
+- Review and classify proposed relationships
+- Maintain a capability catalog and official capability evidence
+- Switch between full and curated demo datasets
 
-## Architecture
+The initial Earthdata tool scope includes Earthdata Search, Worldview, GIBS, CMR, and Harmony.
 
-```text
-Browser
-   │
-   ▼
-Streamlit UI
-   │ REST / JSON
-   ▼
-FastAPI
-   │ SQL
-   ▼
-MariaDB
-```
+## Technology
 
-Batch components extend the core application:
-
-```text
-UWG workbook
-    │
-    ▼
-Workbook importer
-    │
-    ▼
-MariaDB
-
-GitHub repositories
-    │
-    ▼
-GitHub importer
-    │
-    ▼
-Implementation artifacts
-    │
-    ▼
-Matching engine
-    │
-    ▼
-Human review queue
-```
-
-## Local-to-NGAP mapping
-
-| Local prototype | Future AWS NGAP implementation |
+| Component | Technology |
 |---|---|
-| Docker Compose | ECS/Fargate |
-| MariaDB container | Amazon RDS for MariaDB |
-| Local data directory | Amazon S3 |
-| Batch importer container | ECS task |
-| `.env` secrets | AWS Secrets Manager |
-| Container logs | Amazon CloudWatch |
-| Local browser access | NGAP-approved ingress and identity |
+| User interface | Streamlit |
+| API | FastAPI |
+| Database | MariaDB |
+| Local deployment | Docker Compose |
+| Import and matching | Python batch services |
 
-## Repository structure
+## Run locally
 
-```text
-Earthdata_Community_Insights/
-├── api/                  # FastAPI application
-├── ui/                   # Streamlit user interface
-├── importer/             # Workbook importer
-├── github_importer/      # Planned GitHub synchronization worker
-├── matcher/              # Planned need-to-artifact matcher
-├── database/             # Schema, migrations, and seed data
-├── data/                 # Local source data; excluded from Git
-├── docs/                 # Architecture and project documentation
-├── tests/                # Automated tests
-├── compose.yaml          # Local Docker Compose stack
-├── .env.example          # Required environment-variable template
-└── README.md
-```
-
-Some planned folders may not yet exist.
-
-## Local requirements
-
-Install:
+### Requirements
 
 - Git
-- Docker Desktop
-- Docker Compose
+- Docker Desktop with Docker Compose
 - A modern web browser
 
-On Windows, Docker Desktop should use the WSL 2 backend.
-
-Verify Docker:
-
-```powershell
-docker version
-docker compose version
-docker run --rm hello-world
-```
-
-## Local setup
-
-### 1. Clone the repository
+### Setup
 
 ```powershell
 git clone https://github.com/matthewtisdale1/Earthdata_Community_Insights.git
 Set-Location Earthdata_Community_Insights
-```
-
-### 2. Create the local environment file
-
-```powershell
 Copy-Item .env.example .env
 notepad .env
 ```
 
-Example values:
+Set local database credentials and any required GitHub token in `.env`. Do not commit `.env` or real credentials.
 
-```dotenv
-MARIADB_DATABASE=earthdata_user_needs
-MARIADB_USER=uwg_app
-MARIADB_PASSWORD=change-this-local-password
-MARIADB_ROOT_PASSWORD=change-this-root-password
-GITHUB_TOKEN=replace-with-a-read-only-token
-```
-
-Never commit `.env` or real credentials. The repository includes `.env.example` only as a template.
-
-### 3. Add the source workbook
-
-Place the workbook in the local `data` directory using the filename expected by the importer. Source workbooks are intentionally excluded from Git unless a sanitized sample is provided.
-
-### 4. Build and start the application
+Build and start the application:
 
 ```powershell
 docker compose up --build -d
+```
+
+Open:
+
+- UI: `http://127.0.0.1:8501`
+- API documentation: `http://127.0.0.1:8000/docs`
+- API health check: `http://127.0.0.1:8000/health`
+
+Useful commands:
+
+```powershell
+# View status
 docker compose ps
-```
 
-### 5. Import the workbook
-
-```powershell
-docker compose --profile import run --rm importer
-```
-
-### 6. Open the application
-
-- Streamlit UI: `http://127.0.0.1:8501`
-- FastAPI documentation: `http://127.0.0.1:8000/docs`
-- Health endpoint: `http://127.0.0.1:8000/health`
-
-Use `127.0.0.1` rather than `localhost` if workstation or browser security policies interfere with Streamlit JavaScript modules.
-
-## Useful commands
-
-Start services:
-
-```powershell
-docker compose up -d
-```
-
-Rebuild services:
-
-```powershell
-docker compose up --build -d
-```
-
-View logs:
-
-```powershell
+# View logs
 docker compose logs -f
-```
 
-Stop services while preserving data:
+# Rebuild API and UI
+docker compose build --no-cache api ui
+docker compose up -d --force-recreate --no-deps api ui
 
-```powershell
+# Stop while preserving data
 docker compose down
 ```
 
-Delete the local database volume and start over:
+## Dataset modes
+
+Use the full dataset for analysis:
 
 ```powershell
-docker compose down -v
-docker compose up --build -d
-docker compose --profile import run --rm importer
+.\scripts\use-dataset.ps1 full
 ```
 
-## Planned GitHub artifact workflow
+Create and use a curated demo centered on a specific need:
 
 ```powershell
-docker compose --profile github-import run --rm github-importer
-docker compose --profile match run --rm matcher
-docker compose up -d
+.\scripts\refresh-demo.ps1 -NeedCodes NEED-0042 -MaxArtifactsPerNeed 5
+.\scripts\use-dataset.ps1 demo
 ```
 
-The GitHub importer will retrieve implementation artifacts from approved repositories. The matcher will create candidate links between needs and artifacts. A reviewer will then confirm, change, or reject each proposed relationship.
+## Repository structure
 
-## Review principles
+```text
+api/                 FastAPI application
+ui/                  Streamlit application
+importer/            Community-data importer
+github_importer/     GitHub synchronization
+matcher/             Candidate relationship matching
+database/            Schema, migrations, and seed data
+scripts/             Local maintenance and dataset scripts
+docs/                Concise product and design documentation
+```
 
-1. Preserve original source evidence.
-2. Allow canonical needs to be refined during human review.
-3. Treat automated clustering and matching results as draft hypotheses.
-4. Do not infer implementation status solely from a GitHub issue state.
-5. Require explicit human confirmation for implementation claims.
-6. Keep every relationship traceable to its source evidence.
+## Documentation
 
-## Roadmap
+- [Design Specification](docs/Design_Specification.md) — vision, domain model, architecture, governance, and roadmap
+- [Data Dictionary](docs/Data_Dictionary.md) — concise definitions of the authoritative domain objects and relationships
 
-### Version 0.1 — Workbook prototype
+The documentation is intentionally compact so that it remains useful to both people and AI coding assistants.
 
-- Import UWG report information
-- Browse canonical needs
-- Review supporting evidence
-- Edit and validate needs
-- Rank recurring needs
+## Design principles
 
-### Version 0.2 — Earthdata tool catalog
+1. Preserve original community evidence.
+2. Keep canonical needs solution-independent.
+3. Keep capabilities implementation-independent.
+4. Prefer official documentation when demonstrating available capabilities.
+5. Treat GitHub artifacts as engineering provenance, not automatic proof that a need is solved.
+6. Require human review before relationships become authoritative.
+7. Keep every relationship traceable to its source.
 
-- Register Earthdata Search
-- Register Worldview
-- Register GIBS
-- Register CMR
-- Register Harmony
-- Associate approved repositories and documentation sources
+## Current status
 
-### Version 0.3 — GitHub artifact ingestion
-
-- Import issues
-- Import pull requests
-- Import releases
-- Track synchronization status
-
-### Version 0.4 — Need-to-artifact matching
-
-- Generate lexical candidate matches
-- Review candidate links
-- Classify implementation relationships
-- Identify needs without solutions
-
-### Version 0.5 — NGAP pilot
-
-- Deploy services to ECS/Fargate
-- Move MariaDB to Amazon RDS
-- Store source documents in S3
-- Use Secrets Manager and CloudWatch
-- Integrate NGAP-approved identity and ingress
-
-## Project status
-
-This repository is currently a prototype and research effort. Extracted needs, automated clusters, signal scores, and implementation matches should not be treated as authoritative program decisions without review.
-
-## Contributing
-
-Contributions should:
-
-- Preserve source traceability
-- Avoid committing secrets or restricted data
-- Include database migrations for schema changes
-- Include clear testing instructions
-- Keep automated matches distinguishable from human-confirmed relationships
-
-A formal contributing guide will be added as the project matures.
-
-## License
-
-See the repository `LICENSE` file once a project license is selected.
+ECI is an internal prototype and research effort. Imported records, normalized needs, automated scores, and proposed relationships should not be treated as authoritative program decisions until reviewed.
