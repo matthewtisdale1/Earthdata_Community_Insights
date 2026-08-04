@@ -31,7 +31,7 @@ def render() -> None:
         parameters["reviewed"] = False
 
     records = api.get(
-        "/needs/quality-review",
+        "/quality/needs",
         parameters,
     )
 
