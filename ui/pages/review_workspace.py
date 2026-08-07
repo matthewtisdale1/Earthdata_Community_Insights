@@ -107,6 +107,19 @@ def render() -> None:
     meta[2].write(f"**Organizations:** {need.get('organization_count') or 0}")
     meta[3].write(f"**Years:** {need.get('year_count') or 0}")
 
+    reviewer_notes = st.text_area(
+        'Reviewer notes',
+        value=need.get('notes') or '',
+        height=100,
+        help='Capture durable context or rationale. Avoid notes that only say “looks good.”',
+        key=f'notes_{need_code}',
+    )
+    reviewer = st.text_input(
+        'Reviewer',
+        value=need.get('reviewer') or 'local-reviewer',
+        key=f'reviewer_{need_code}',
+    )
+
     with st.expander('Quality issues', expanded=bool(detail.get('quality_issues'))):
         issues = detail.get('quality_issues') or []
         if not issues:
@@ -138,41 +151,118 @@ def render() -> None:
 
     with st.expander('Supporting evidence', expanded=True):
         evidence = detail.get('evidence') or []
+        st.caption(
+            'Evidence records are immutable. Link and unlink actions change only the curated relationship between evidence and this canonical need.'
+        )
+        relationship_note = st.text_input(
+            'Evidence relationship note',
+            placeholder='Optional rationale for adding or removing an evidence link',
+            key=f'evidence_relationship_note_{need_code}',
+        )
+
         if not evidence:
             st.warning('No supporting evidence is linked to this need.')
         else:
             for record in evidence:
-                title = ' · '.join(
-                    str(value) for value in (
-                        record.get('event_year'),
-                        record.get('originating_organization'),
-                        record.get('source_title'),
-                        record.get('evidence_code'),
-                    ) if value
-                )
-                st.markdown(f'**{title}**')
-                st.write(record.get('original_statement') or '—')
-                details = []
-                if record.get('user_community'):
-                    details.append(f"Community: {record['user_community']}")
-                if record.get('source_location'):
-                    details.append(f"Location: {record['source_location']}")
-                if details:
-                    st.caption(' · '.join(details))
+                text_col, action_col = st.columns([8, 1.4])
+                with text_col:
+                    title = ' · '.join(
+                        str(value) for value in (
+                            record.get('event_year'),
+                            record.get('originating_organization'),
+                            record.get('source_title'),
+                            record.get('evidence_code'),
+                        ) if value
+                    )
+                    st.markdown(f'**{title}**')
+                    st.write(record.get('original_statement') or '—')
+                    details = []
+                    if record.get('user_community'):
+                        details.append(f"Community: {record['user_community']}")
+                    if record.get('source_location'):
+                        details.append(f"Location: {record['source_location']}")
+                    if record.get('link_review_status'):
+                        details.append(f"Link: {record['link_review_status']}")
+                    if details:
+                        st.caption(' · '.join(details))
+                with action_col:
+                    if st.button(
+                        'Unlink',
+                        key=f"unlink_{need_code}_{record['evidence_code']}",
+                        help='Remove only this evidence-to-need relationship. The evidence record is retained.',
+                        use_container_width=True,
+                    ):
+                        api.post(
+                            f"/curation/review/needs/{need_code}/evidence/{record['evidence_code']}/unlink",
+                            {
+                                'reviewer': reviewer.strip() or 'local-reviewer',
+                                'notes': relationship_note.strip() or None,
+                            },
+                        )
+                        st.success(f"Unlinked {record['evidence_code']} from {need_code}.")
+                        st.rerun()
                 st.divider()
 
-    reviewer_notes = st.text_area(
-        'Reviewer notes',
-        value=need.get('notes') or '',
-        height=100,
-        help='Capture durable context or rationale. Avoid notes that only say “looks good.”',
-        key=f'notes_{need_code}',
-    )
-    reviewer = st.text_input(
-        'Reviewer',
-        value=need.get('reviewer') or 'local-reviewer',
-        key=f'reviewer_{need_code}',
-    )
+        st.markdown('#### Find evidence to add')
+        evidence_search = st.text_input(
+            'Search the evidence corpus',
+            placeholder='Search statement text, evidence ID, source, organization, or community',
+            key=f'evidence_search_{need_code}',
+        )
+        if len(evidence_search.strip()) >= 2:
+            candidates = api.get(
+                '/curation/review/evidence/search',
+                {
+                    'q': evidence_search.strip(),
+                    'need_code': need_code,
+                    'limit': 50,
+                },
+            )
+            if not candidates:
+                st.info('No evidence matched that search.')
+            else:
+                st.caption(f'{len(candidates)} matching evidence records')
+                for candidate in candidates:
+                    result_col, add_col = st.columns([8, 1.4])
+                    with result_col:
+                        title = ' · '.join(
+                            str(value) for value in (
+                                candidate.get('event_year'),
+                                candidate.get('originating_organization'),
+                                candidate.get('source_title'),
+                                candidate.get('evidence_code'),
+                            ) if value
+                        )
+                        st.markdown(f'**{title}**')
+                        st.write(candidate.get('original_statement') or '—')
+                        metadata = []
+                        if candidate.get('user_community'):
+                            metadata.append(f"Community: {candidate['user_community']}")
+                        if candidate.get('linked_need_codes'):
+                            metadata.append(f"Currently linked: {candidate['linked_need_codes']}")
+                        if metadata:
+                            st.caption(' · '.join(metadata))
+                    with add_col:
+                        if candidate.get('linked_to_current_need'):
+                            st.success('Linked')
+                        elif st.button(
+                            'Add link',
+                            key=f"link_{need_code}_{candidate['evidence_code']}",
+                            type='secondary',
+                            use_container_width=True,
+                        ):
+                            api.post(
+                                f"/curation/review/needs/{need_code}/evidence/{candidate['evidence_code']}/link",
+                                {
+                                    'reviewer': reviewer.strip() or 'local-reviewer',
+                                    'notes': relationship_note.strip() or None,
+                                },
+                            )
+                            st.success(f"Linked {candidate['evidence_code']} to {need_code}.")
+                            st.rerun()
+                    st.divider()
+        elif evidence_search:
+            st.caption('Enter at least two characters to search the evidence corpus.')
 
     with st.expander('Previous reviews', expanded=False):
         history = detail.get('history') or []

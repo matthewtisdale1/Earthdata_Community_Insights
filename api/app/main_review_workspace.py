@@ -1,7 +1,15 @@
+import json
+
 from fastapi import HTTPException, Query
+from pydantic import BaseModel
 from sqlalchemy import text
 
 from app.main_knowledge_quality import app, engine, _quality_issues, _score
+
+
+class EvidenceLinkAction(BaseModel):
+    reviewer: str = 'local-reviewer'
+    notes: str | None = None
 
 
 @app.get('/curation/review/options')
@@ -110,7 +118,13 @@ def review_need_detail(need_code: str):
                 e.human_reviewed,
                 COALESCE(e.originating_organization_name, o.organization_name) AS originating_organization,
                 s.source_code,
-                s.source_title
+                s.source_title,
+                enl.review_status AS link_review_status,
+                enl.reviewer AS link_reviewer,
+                enl.reviewed_at AS link_reviewed_at,
+                enl.mapping_method,
+                enl.confidence AS link_confidence,
+                enl.notes AS link_notes
             FROM needs n
             JOIN evidence_need_links enl ON enl.need_id = n.need_id AND enl.relationship_type = 'Supports'
             JOIN evidence e ON e.evidence_id = enl.evidence_id AND e.duplicate_evidence = FALSE
@@ -166,3 +180,200 @@ def review_need_detail(need_code: str):
         'history': [dict(row) for row in history],
         'origins': [dict(row) for row in origins],
     }
+
+
+@app.get('/curation/review/evidence/search')
+def search_review_evidence(
+    q: str,
+    need_code: str = '',
+    limit: int = Query(50, ge=1, le=200),
+):
+    search = (q or '').strip()
+    if len(search) < 2:
+        return []
+
+    with engine.connect() as connection:
+        rows = connection.execute(text('''
+            SELECT
+                e.evidence_code,
+                e.original_statement,
+                e.evidence_type,
+                e.event_year,
+                e.user_community,
+                e.source_location,
+                COALESCE(e.originating_organization_name, o.organization_name) AS originating_organization,
+                s.source_title,
+                GROUP_CONCAT(DISTINCT CASE
+                    WHEN enl.relationship_type = 'Supports' THEN n.need_code
+                    ELSE NULL
+                END ORDER BY n.need_code SEPARATOR ', ') AS linked_need_codes,
+                MAX(CASE WHEN n.need_code = :need_code AND enl.relationship_type = 'Supports' THEN 1 ELSE 0 END) AS linked_to_current_need
+            FROM evidence e
+            LEFT JOIN organizations o ON o.organization_id = e.organization_id
+            LEFT JOIN sources s ON s.source_id = e.source_id
+            LEFT JOIN evidence_need_links enl ON enl.evidence_id = e.evidence_id
+            LEFT JOIN needs n ON n.need_id = enl.need_id
+            WHERE e.duplicate_evidence = FALSE
+              AND (
+                    e.evidence_code LIKE :search
+                 OR e.original_statement LIKE :search
+                 OR e.normalized_statement LIKE :search
+                 OR e.user_community LIKE :search
+                 OR COALESCE(e.originating_organization_name, o.organization_name) LIKE :search
+                 OR s.source_title LIKE :search
+              )
+            GROUP BY e.evidence_id, e.evidence_code, e.original_statement,
+                     e.evidence_type, e.event_year, e.user_community,
+                     e.source_location,
+                     COALESCE(e.originating_organization_name, o.organization_name),
+                     s.source_title
+            ORDER BY linked_to_current_need ASC, e.event_year DESC, e.evidence_code
+            LIMIT :limit
+        '''), {
+            'search': f'%{search}%',
+            'need_code': need_code,
+            'limit': limit,
+        }).mappings().all()
+    return [dict(row) for row in rows]
+
+
+@app.post('/curation/review/needs/{need_code}/evidence/{evidence_code}/link')
+def link_evidence_to_need(
+    need_code: str,
+    evidence_code: str,
+    action: EvidenceLinkAction,
+):
+    reviewer = (action.reviewer or '').strip() or 'local-reviewer'
+    with engine.begin() as connection:
+        need = connection.execute(
+            text('SELECT need_id FROM needs WHERE need_code = :code'),
+            {'code': need_code},
+        ).mappings().first()
+        evidence = connection.execute(
+            text('SELECT evidence_id, need_id FROM evidence WHERE evidence_code = :code AND duplicate_evidence = FALSE'),
+            {'code': evidence_code},
+        ).mappings().first()
+        if not need:
+            raise HTTPException(status_code=404, detail='Canonical need not found')
+        if not evidence:
+            raise HTTPException(status_code=404, detail='Evidence not found')
+
+        connection.execute(text('''
+            INSERT INTO evidence_need_links (
+                evidence_id, need_id, relationship_type, mapping_method,
+                review_status, reviewer, reviewed_at, notes
+            ) VALUES (
+                :evidence_id, :need_id, 'Supports', 'Manual curator review',
+                'Confirmed', :reviewer, NOW(), :notes
+            )
+            ON DUPLICATE KEY UPDATE
+                mapping_method = 'Manual curator review',
+                review_status = 'Confirmed',
+                reviewer = VALUES(reviewer),
+                reviewed_at = NOW(),
+                notes = VALUES(notes),
+                updated_at = NOW()
+        '''), {
+            'evidence_id': evidence['evidence_id'],
+            'need_id': need['need_id'],
+            'reviewer': reviewer,
+            'notes': action.notes,
+        })
+
+        # Keep the legacy one-to-many pointer usable without overwriting an
+        # existing primary association. The many-to-many link table is authoritative.
+        if evidence['need_id'] is None:
+            connection.execute(
+                text('UPDATE evidence SET need_id = :need_id WHERE evidence_id = :evidence_id'),
+                {'need_id': need['need_id'], 'evidence_id': evidence['evidence_id']},
+            )
+
+        connection.execute(text('''
+            INSERT INTO review_decisions (
+                entity_type, entity_key, decision_type, new_value,
+                reviewer, review_notes
+            ) VALUES (
+                'EvidenceNeedLink', :entity_key, 'Link', :new_value,
+                :reviewer, :review_notes
+            )
+        '''), {
+            'entity_key': f'{need_code}:{evidence_code}',
+            'new_value': json.dumps({
+                'need_code': need_code,
+                'evidence_code': evidence_code,
+                'relationship_type': 'Supports',
+                'review_status': 'Confirmed',
+            }),
+            'reviewer': reviewer,
+            'review_notes': action.notes,
+        })
+    return {'linked': True, 'need_code': need_code, 'evidence_code': evidence_code}
+
+
+@app.post('/curation/review/needs/{need_code}/evidence/{evidence_code}/unlink')
+def unlink_evidence_from_need(
+    need_code: str,
+    evidence_code: str,
+    action: EvidenceLinkAction,
+):
+    reviewer = (action.reviewer or '').strip() or 'local-reviewer'
+    with engine.begin() as connection:
+        row = connection.execute(text('''
+            SELECT enl.evidence_need_link_id, e.evidence_id, e.need_id,
+                   n.need_id AS target_need_id
+            FROM evidence_need_links enl
+            JOIN evidence e ON e.evidence_id = enl.evidence_id
+            JOIN needs n ON n.need_id = enl.need_id
+            WHERE n.need_code = :need_code
+              AND e.evidence_code = :evidence_code
+              AND enl.relationship_type = 'Supports'
+        '''), {
+            'need_code': need_code,
+            'evidence_code': evidence_code,
+        }).mappings().first()
+        if not row:
+            raise HTTPException(status_code=404, detail='Supporting evidence link not found')
+
+        connection.execute(
+            text('DELETE FROM evidence_need_links WHERE evidence_need_link_id = :link_id'),
+            {'link_id': row['evidence_need_link_id']},
+        )
+
+        # If the removed relationship was also the legacy primary pointer,
+        # point it at another remaining Supports relationship when available.
+        if row['need_id'] == row['target_need_id']:
+            replacement = connection.execute(text('''
+                SELECT need_id
+                FROM evidence_need_links
+                WHERE evidence_id = :evidence_id
+                  AND relationship_type = 'Supports'
+                ORDER BY review_status = 'Confirmed' DESC, evidence_need_link_id
+                LIMIT 1
+            '''), {'evidence_id': row['evidence_id']}).scalar()
+            connection.execute(text('''
+                UPDATE evidence SET need_id = :replacement
+                WHERE evidence_id = :evidence_id
+            '''), {
+                'replacement': replacement,
+                'evidence_id': row['evidence_id'],
+            })
+
+        connection.execute(text('''
+            INSERT INTO review_decisions (
+                entity_type, entity_key, decision_type, previous_value,
+                reviewer, review_notes
+            ) VALUES (
+                'EvidenceNeedLink', :entity_key, 'Unlink', :previous_value,
+                :reviewer, :review_notes
+            )
+        '''), {
+            'entity_key': f'{need_code}:{evidence_code}',
+            'previous_value': json.dumps({
+                'need_code': need_code,
+                'evidence_code': evidence_code,
+                'relationship_type': 'Supports',
+            }),
+            'reviewer': reviewer,
+            'review_notes': action.notes,
+        })
+    return {'linked': False, 'need_code': need_code, 'evidence_code': evidence_code}
