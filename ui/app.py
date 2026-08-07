@@ -13,6 +13,7 @@ from pages.need_history import render as render_need_history
 from pages.needs import render as render_needs
 from pages.organizations import render as render_organizations
 from pages.review_queue import render as render_review_queue
+from pages.review_workspace import render as render_review_workspace
 from pages.sources import render as render_sources
 from pages.tool_detail import render as render_tool_detail
 from pages.tools import render as render_tools
@@ -28,6 +29,7 @@ needs = st.Page(render_needs, title='Needs', icon=':material/hub:', url_path='ne
 need_detail = st.Page(render_need_detail, title='Need Details', icon=':material/description:', url_path='need-detail', visibility='hidden')
 need_history = st.Page(render_need_history, title='Need Review History', icon=':material/history:', url_path='need-review-history')
 knowledge_quality = st.Page(render_knowledge_quality, title='Knowledge Quality', icon=':material/health_and_safety:', url_path='knowledge-quality')
+review_workspace = st.Page(render_review_workspace, title='Knowledge Review', icon=':material/rate_review:', url_path='knowledge-review')
 evidence = st.Page(render_evidence, title='Evidence', icon=':material/format_quote:', url_path='evidence')
 evidence_queue = st.Page(render_evidence_queue, title='Evidence Review Queue', icon=':material/fact_check:', url_path='evidence-review-queue')
 evidence_detail = st.Page(render_evidence_detail, title='Evidence Details', icon=':material/article:', url_path='evidence-detail', visibility='hidden')
@@ -41,7 +43,7 @@ review_queue = st.Page(render_review_queue, title='Need Review Queue', icon=':ma
 match_review = st.Page(render_match_review, title='Implementation Matches', icon=':material/compare_arrows:', url_path='implementation-matches')
 
 register_pages({'dashboard': dashboard, 'needs': needs, 'need_detail': need_detail, 'need_history': need_history,
-                'knowledge_quality': knowledge_quality,
+                'knowledge_quality': knowledge_quality, 'review_workspace': review_workspace,
                 'evidence': evidence, 'evidence_queue': evidence_queue, 'evidence_detail': evidence_detail,
                 'capabilities': capabilities, 'capability_detail': capability_detail,
                 'tools': tools, 'tool_detail': tool_detail, 'organizations': organizations, 'sources': sources,
@@ -50,7 +52,7 @@ register_pages({'dashboard': dashboard, 'needs': needs, 'need_detail': need_deta
 navigation = st.navigation({
     'Community': [dashboard, needs, evidence, organizations],
     'Earthdata Ecosystem': [capabilities, tools],
-    'Curation': [knowledge_quality, evidence_queue, need_history, sources, review_queue, match_review],
+    'Curation': [review_workspace, knowledge_quality, evidence_queue, need_history, sources, review_queue, match_review],
     'Details': [need_detail, evidence_detail, capability_detail, tool_detail],
 }, expanded=True)
 
