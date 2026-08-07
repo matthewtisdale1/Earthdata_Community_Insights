@@ -6,6 +6,7 @@ from pages.dashboard import render as render_dashboard
 from pages.evidence import render as render_evidence
 from pages.evidence_detail import render as render_evidence_detail
 from pages.evidence_queue import render as render_evidence_queue
+from pages.knowledge_curation import render as render_knowledge_curation
 from pages.knowledge_quality import render as render_knowledge_quality
 from pages.match_review import render as render_match_review
 from pages.need_detail import render as render_need_detail
@@ -13,7 +14,6 @@ from pages.need_history import render as render_need_history
 from pages.needs import render as render_needs
 from pages.organizations import render as render_organizations
 from pages.review_queue import render as render_review_queue
-from pages.review_workspace import render as render_review_workspace
 from pages.sources import render as render_sources
 from pages.tool_detail import render as render_tool_detail
 from pages.tools import render as render_tools
@@ -24,14 +24,14 @@ from styles import apply_styles
 st.set_page_config(page_title='Earthdata Community Insights', page_icon='🌎', layout='wide', initial_sidebar_state='expanded')
 apply_styles()
 
-dashboard = st.Page(render_dashboard, title='Community Signals', icon=':material/insights:', url_path='dashboard', default=True)
-needs = st.Page(render_needs, title='Needs', icon=':material/hub:', url_path='needs')
+dashboard = st.Page(render_dashboard, title='Dashboard', icon=':material/insights:', url_path='dashboard', default=True)
+needs = st.Page(render_needs, title='Knowledge', icon=':material/hub:', url_path='knowledge')
 need_detail = st.Page(render_need_detail, title='Need Details', icon=':material/description:', url_path='need-detail', visibility='hidden')
-need_history = st.Page(render_need_history, title='Need Review History', icon=':material/history:', url_path='need-review-history')
+need_history = st.Page(render_need_history, title='Curation History', icon=':material/history:', url_path='curation-history', visibility='hidden')
+knowledge_curation = st.Page(render_knowledge_curation, title='Knowledge Curation', icon=':material/rate_review:', url_path='knowledge-curation')
 knowledge_quality = st.Page(render_knowledge_quality, title='Knowledge Quality', icon=':material/health_and_safety:', url_path='knowledge-quality')
-review_workspace = st.Page(render_review_workspace, title='Knowledge Review', icon=':material/rate_review:', url_path='knowledge-review')
 evidence = st.Page(render_evidence, title='Evidence', icon=':material/format_quote:', url_path='evidence')
-evidence_queue = st.Page(render_evidence_queue, title='Evidence Review Queue', icon=':material/fact_check:', url_path='evidence-review-queue')
+evidence_queue = st.Page(render_evidence_queue, title='Evidence Review Queue', icon=':material/fact_check:', url_path='evidence-review-queue', visibility='hidden')
 evidence_detail = st.Page(render_evidence_detail, title='Evidence Details', icon=':material/article:', url_path='evidence-detail', visibility='hidden')
 capabilities = st.Page(render_capabilities, title='Capabilities', icon=':material/category:', url_path='capabilities')
 capability_detail = st.Page(render_capability_detail, title='Capability Details', icon=':material/account_tree:', url_path='capability-detail', visibility='hidden')
@@ -39,32 +39,45 @@ tools = st.Page(render_tools, title='Earthdata Tools', icon=':material/apps:', u
 tool_detail = st.Page(render_tool_detail, title='Tool Details', icon=':material/build:', url_path='tool-detail', visibility='hidden')
 organizations = st.Page(render_organizations, title='Organizations', icon=':material/account_balance:', url_path='organizations')
 sources = st.Page(render_sources, title='Sources', icon=':material/folder_open:', url_path='sources')
-review_queue = st.Page(render_review_queue, title='Need Review Queue', icon=':material/rule:', url_path='review-queue')
-match_review = st.Page(render_match_review, title='Implementation Matches', icon=':material/compare_arrows:', url_path='implementation-matches')
+review_queue = st.Page(render_review_queue, title='Need Review Queue', icon=':material/rule:', url_path='review-queue', visibility='hidden')
+match_review = st.Page(render_match_review, title='Suggested Relationships', icon=':material/compare_arrows:', url_path='suggested-relationships')
 
-register_pages({'dashboard': dashboard, 'needs': needs, 'need_detail': need_detail, 'need_history': need_history,
-                'knowledge_quality': knowledge_quality, 'review_workspace': review_workspace,
-                'evidence': evidence, 'evidence_queue': evidence_queue, 'evidence_detail': evidence_detail,
-                'capabilities': capabilities, 'capability_detail': capability_detail,
-                'tools': tools, 'tool_detail': tool_detail, 'organizations': organizations, 'sources': sources,
-                'review_queue': review_queue, 'match_review': match_review})
+register_pages({
+    'dashboard': dashboard,
+    'needs': needs,
+    'need_detail': need_detail,
+    'need_history': need_history,
+    'knowledge_curation': knowledge_curation,
+    'knowledge_quality': knowledge_quality,
+    'evidence': evidence,
+    'evidence_queue': evidence_queue,
+    'evidence_detail': evidence_detail,
+    'capabilities': capabilities,
+    'capability_detail': capability_detail,
+    'tools': tools,
+    'tool_detail': tool_detail,
+    'organizations': organizations,
+    'sources': sources,
+    'review_queue': review_queue,
+    'match_review': match_review,
+})
 
 navigation = st.navigation({
-    'Community': [dashboard, needs, evidence, organizations],
-    'Earthdata Ecosystem': [capabilities, tools],
-    'Curation': [review_workspace, knowledge_quality, evidence_queue, need_history, sources, review_queue, match_review],
-    'Details': [need_detail, evidence_detail, capability_detail, tool_detail],
+    'Explore': [dashboard, needs, evidence, sources, organizations],
+    'Curate': [knowledge_curation, knowledge_quality, match_review],
+    'Reference': [capabilities, tools],
+    'Details': [need_detail, need_history, evidence_queue, evidence_detail, capability_detail, tool_detail, review_queue],
 }, expanded=True)
 
 with st.sidebar:
     st.markdown('## NASA Earthdata')
-    st.caption('Community Insights Prototype')
+    st.caption('Earthdata Community Insights')
     dataset_mode = os.environ.get('DATASET_MODE', 'full').upper()
     if dataset_mode == 'DEMO':
         st.warning('DATASET: DEMO', icon=':material/science:')
     else:
         st.info('DATASET: FULL', icon=':material/database:')
     st.divider()
-    st.caption('Trace community evidence through needs and capabilities to Earthdata tools and implementation artifacts.')
+    st.caption('Explore community evidence, curate trusted knowledge, and trace needs to Earthdata capabilities.')
 
 navigation.run()
