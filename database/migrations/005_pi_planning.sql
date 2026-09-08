@@ -30,3 +30,24 @@ CREATE TABLE IF NOT EXISTS planning_history (
  changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
  INDEX planning_history_entity (entity_type,entity_key)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ASSET roster supplied by the product owner. No DAAC mapping is implied.
+-- Re-running setup adds missing teams without replacing existing records or assignments.
+INSERT INTO planning_teams (name, kind)
+SELECT 'Atmosphere', 'ASSET'
+WHERE NOT EXISTS (SELECT 1 FROM planning_teams WHERE name = 'Atmosphere');
+INSERT INTO planning_teams (name, kind)
+SELECT 'Hydrosphere', 'ASSET'
+WHERE NOT EXISTS (SELECT 1 FROM planning_teams WHERE name = 'Hydrosphere');
+INSERT INTO planning_teams (name, kind)
+SELECT 'Cryosphere', 'ASSET'
+WHERE NOT EXISTS (SELECT 1 FROM planning_teams WHERE name = 'Cryosphere');
+INSERT INTO planning_teams (name, kind)
+SELECT 'Biosphere', 'ASSET'
+WHERE NOT EXISTS (SELECT 1 FROM planning_teams WHERE name = 'Biosphere');
+INSERT INTO planning_teams (name, kind)
+SELECT 'Geosphere', 'ASSET'
+WHERE NOT EXISTS (SELECT 1 FROM planning_teams WHERE name = 'Geosphere');
+INSERT INTO planning_teams (name, kind)
+SELECT 'XASSET (Cross Asset)', 'ASSET'
+WHERE NOT EXISTS (SELECT 1 FROM planning_teams WHERE name = 'XASSET (Cross Asset)');
