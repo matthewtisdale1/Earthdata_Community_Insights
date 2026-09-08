@@ -15,6 +15,7 @@ from pages.tool_detail import render as render_tool_detail
 from pages.tools import render as render_tools
 from pages.capabilities import render as render_capabilities
 from pages.capability_detail import render as render_capability_detail
+from pages.planning import render as render_planning
 from styles import apply_styles
 
 st.set_page_config(page_title='Earthdata Community Insights', page_icon='🌎', layout='wide', initial_sidebar_state='expanded')
@@ -34,6 +35,8 @@ sources = st.Page(render_sources, title='Sources', icon=':material/folder_open:'
 review_queue = st.Page(render_review_queue, title='Need Review Queue', icon=':material/rule:', url_path='review-queue')
 match_review = st.Page(render_match_review, title='Implementation Matches', icon=':material/compare_arrows:', url_path='implementation-matches')
 
+planning = st.Page(render_planning, title='PI Planning & Outcomes', icon=':material/checklist:', url_path='planning')
+
 register_pages({'dashboard': dashboard, 'needs': needs, 'need_detail': need_detail, 'evidence': evidence,
                 'evidence_detail': evidence_detail, 'capabilities': capabilities, 'capability_detail': capability_detail,
                 'tools': tools, 'tool_detail': tool_detail, 'organizations': organizations, 'sources': sources,
@@ -42,6 +45,7 @@ register_pages({'dashboard': dashboard, 'needs': needs, 'need_detail': need_deta
 navigation = st.navigation({
     'Community': [dashboard, needs, evidence, organizations],
     'Earthdata Ecosystem': [capabilities, tools],
+    'Planning': [planning],
     'Curation': [sources, review_queue, match_review],
     'Details': [need_detail, evidence_detail, capability_detail, tool_detail],
 }, expanded=True)

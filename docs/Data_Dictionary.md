@@ -376,3 +376,13 @@
 ## 4. Maintenance
 
 Update this dictionary only when a domain object, its authority, lifecycle, or principal relationships change. Field-level SQL details belong in migration files and database introspection rather than this concise reference.
+
+## Planning extension
+
+- **Planning Team:** Configurable ASSET, DAAC, enterprise, or other delivery owner. Independent of historical evidence organization.
+- **PI:** Named planning interval with start and end dates.
+- **Deliverable:** A scoped commitment linked to one canonical need, with acceptance criteria, team, PI, delivery status, and completion evidence. Multiple deliverables may support one need.
+- **Planning History:** Prior/new deliverable values, attributed reviewer, reason, and timestamp. Includes ownership and PI changes.
+- **Outcome Assessment:** Append-only, attributed review of whether a need is unmet, partially met, satisfied, superseded, or unassessed. Independent of imported lifecycle/curation status and delivery completion.
+
+See [PI Planning](PI_Planning.md) for prototype scope and validation limits.

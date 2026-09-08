@@ -136,3 +136,7 @@ The documentation is intentionally compact so that it remains useful to both peo
 ## Current status
 
 ECI is an internal prototype and research effort. Imported records, normalized needs, automated scores, and proposed relationships should not be treated as authoritative program decisions until reviewed.
+
+## PI planning and ASSET ownership
+
+The planning extension adds PIs, configurable teams, need-linked deliverables, acceptance criteria, completion evidence, reassignment history, and independent need-outcome reviews. Run `scripts/enable-planning.ps1` to apply its additive migration and rebuild the local app. See [PI Planning](docs/PI_Planning.md) for workflow, source-review findings, and prototype limits.

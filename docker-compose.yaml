@@ -33,6 +33,9 @@ services:
     build:
       context: ./api
 
+    volumes:
+      - ./database/migrations:/migrations:ro
+
     container_name: uwg-api
     restart: unless-stopped
 

@@ -293,3 +293,7 @@ The prototype currently supports:
 ## 9. Maintenance rule
 
 Documentation should remain intentionally concise. Update this design specification only when the product mission, domain model, architecture, governance, or roadmap changes. Implementation details that can be understood directly from code, migrations, or API documentation should not be duplicated here.
+
+## 10. PI planning extension
+
+ECI now includes a local planning workspace for need-linked deliverables, PI dates, configurable ASSET/DAAC/enterprise teams, ownership history, completion evidence, and independent outcome reviews. Existing engineering systems remain authoritative for their own work items; this prototype stores planning commitments and external references without synchronizing status automatically. Historical source organizations are preserved. Formal organizational transition mappings remain future work. See [PI Planning](PI_Planning.md).
